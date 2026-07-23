@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# relink — reconcile CodeVault/projects/ with the workspace's subdirectories.
+#
+# Durable & idempotent: creates one relative symlink under projects/ for every
+# real subdirectory of the workspace root (so Obsidian surfaces every project,
+# whether nix-cloned or dropped in by hand), and prunes links whose target has
+# gone away. It ONLY ever touches symlinks inside projects/ — real vault
+# content (.obsidian/, notes, bin/) is never modified.
+#
+# Usage:  relink [WORKSPACE_ROOT]      (default: $WORKSPACE_ROOT or ~/workspace)
+# Run it manually anytime, or let the nix workspace module invoke it on switch.
+set -euo pipefail
+
+WS="${1:-${WORKSPACE_ROOT:-$HOME/workspace}}"
+VAULT="$WS/CodeVault"
+LINKDIR="$VAULT/projects"
+
+[ -d "$WS" ] || { echo "relink: workspace root not found: $WS" >&2; exit 1; }
+mkdir -p "$LINKDIR"
+shopt -s nullglob
+
+# 1. Add/refresh — one relative symlink per real workspace subdir, skipping the
+#    vault itself and any dotdir. projects/<name> -> ../../<name>
+for dir in "$WS"/*/; do
+  name="$(basename "$dir")"
+  [ "$name" = "CodeVault" ] && continue
+  case "$name" in .*) continue ;; esac
+  ln -sfn "../../$name" "$LINKDIR/$name"
+done
+
+# 2. Prune — drop only broken symlinks (target removed/renamed). The `-L` guard
+#    means a real file or directory is never deleted.
+for link in "$LINKDIR"/*; do
+  [ -L "$link" ] || continue
+  [ -e "$link" ] || rm -f "$link"
+done
+
+echo "relink: $(find "$LINKDIR" -maxdepth 1 -type l | wc -l | tr -d ' ') project(s) linked under $LINKDIR"

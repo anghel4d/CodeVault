@@ -1,0 +1,11 @@
+# Generated project symlinks — rebuilt per machine by bin/relink. Never commit
+# these: their targets are machine-local paths under ~/workspace.
+/projects/
+
+# Obsidian per-session / per-machine state (keep the rest of .obsidian tracked)
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache
+
+# OS cruft
+.DS_Store
